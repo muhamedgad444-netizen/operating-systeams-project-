@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "journalstat.h"
 
 int
 sys_fork(void)
@@ -88,4 +89,17 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// Copy journal statistics into user-supplied struct journal_stats.
+// Usage: journalstat(&js)  where js is a struct journal_stats.
+int
+sys_journalstat(void)
+{
+  struct journal_stats *js;
+
+  if (argptr(0, (char**)&js, sizeof(*js)) < 0)
+    return -1;
+  get_journal_stats(js);
+  return 0;
 }

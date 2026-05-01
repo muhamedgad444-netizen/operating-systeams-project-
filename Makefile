@@ -171,6 +171,7 @@ UPROGS=\
 	_forktest\
 	_grep\
 	_init\
+	_journaltest\
 	_kill\
 	_ln\
 	_ls\

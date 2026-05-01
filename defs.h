@@ -10,6 +10,9 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+// Journal statistics shared between kernel and user space (see journalstat.h)
+#include "journalstat.h"
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -84,8 +87,9 @@ void            microdelay(int);
 // log.c
 void            initlog(int dev);
 void            log_write(struct buf*);
-void            begin_op();
-void            end_op();
+void            begin_op(void);
+void            end_op(void);
+void            get_journal_stats(struct journal_stats*);
 
 // mp.c
 extern int      ismp;
