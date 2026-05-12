@@ -109,16 +109,23 @@ On boot, `initlog()` calls `recover_from_log()`:
 
 ---
 
-## How to Build and Run
+## How to Download, Build, and Run
 
-### Requirements (Linux / WSL Ubuntu)
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/muhamedgad444-netizen/operating-systeams-project-.git
+cd operating-systeams-project-
+```
+
+### 2. Install Requirements (Linux / WSL Ubuntu)
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y build-essential gcc-multilib qemu-system-x86
 ```
 
-### Build
+### 3. Build and Run
 
 ```bash
 make clean
