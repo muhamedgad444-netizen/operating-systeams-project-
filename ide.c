@@ -166,3 +166,15 @@ iderw(struct buf *b)
 
   release(&idelock);
 }
+
+//PAGEBREAK!
+// Send IDE FLUSH CACHE command to drive to act as a hardware write barrier.
+void
+ideflush(void)
+{
+  acquire(&idelock);
+  idewait(0);
+  outb(0x1f7, 0xE7); // IDE_CMD_FLUSH_CACHE
+  idewait(0);
+  release(&idelock);
+}

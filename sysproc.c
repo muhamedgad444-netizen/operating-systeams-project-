@@ -103,3 +103,16 @@ sys_journalstat(void)
   get_journal_stats(js);
   return 0;
 }
+
+// System call to set a crash point for the journal.
+// 1 = crash after writing log blocks but BEFORE header write.
+// 2 = crash after writing log header (the commit point).
+int
+sys_crash(void)
+{
+  int phase;
+  if(argint(0, &phase) < 0)
+    return -1;
+  crash_at_phase = phase;
+  return 0;
+}

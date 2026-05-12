@@ -60,6 +60,7 @@ int             writei(struct inode*, char*, uint, uint);
 void            ideinit(void);
 void            ideintr(void);
 void            iderw(struct buf*);
+void            ideflush(void);
 
 // ioapic.c
 void            ioapicenable(int irq, int cpu);
@@ -86,10 +87,11 @@ void            microdelay(int);
 
 // log.c
 void            initlog(int dev);
-void            log_write(struct buf*);
+void            log_write(struct buf*, int, int);
 void            begin_op(void);
 void            end_op(void);
 void            get_journal_stats(struct journal_stats*);
+extern int      crash_at_phase;
 
 // mp.c
 extern int      ismp;

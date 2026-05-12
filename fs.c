@@ -46,7 +46,7 @@ bzero(int dev, int bno)
 
   bp = bread(dev, bno);
   memset(bp->data, 0, BSIZE);
-  log_write(bp);
+  log_write(bp, 0, BSIZE);
   brelse(bp);
 }
 
@@ -66,7 +66,7 @@ balloc(uint dev)
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
-        log_write(bp);
+        log_write(bp, bi/8, 1);
         brelse(bp);
         bzero(dev, b + bi);
         return b + bi;
@@ -90,7 +90,7 @@ bfree(int dev, uint b)
   if((bp->data[bi/8] & m) == 0)
     panic("freeing free block");
   bp->data[bi/8] &= ~m;
-  log_write(bp);
+  log_write(bp, bi/8, 1);
   brelse(bp);
 }
 
@@ -204,7 +204,7 @@ ialloc(uint dev, short type)
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
-      log_write(bp);   // mark it allocated on the disk
+      log_write(bp, (inum%IPB)*sizeof(struct dinode), sizeof(struct dinode));   // mark it allocated on the disk
       brelse(bp);
       return iget(dev, inum);
     }
@@ -231,7 +231,7 @@ iupdate(struct inode *ip)
   dip->nlink = ip->nlink;
   dip->size = ip->size;
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
-  log_write(bp);
+  log_write(bp, (ip->inum%IPB)*sizeof(struct dinode), sizeof(struct dinode));
   brelse(bp);
 }
 
@@ -390,7 +390,7 @@ bmap(struct inode *ip, uint bn)
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev);
-      log_write(bp);
+      log_write(bp, bn*sizeof(uint), sizeof(uint));
     }
     brelse(bp);
     return addr;
@@ -499,7 +499,39 @@ writei(struct inode *ip, char *src, uint off, uint n)
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
-    log_write(bp);
+    
+    // ---------------------------------------------------------------
+    // ENHANCEMENT: Metadata-Only Journaling (cf. ext3 "ordered" mode)
+    // ---------------------------------------------------------------
+    // Design decision: We journal directory entries (metadata) but NOT
+    // regular file data.  This is a deliberate, well-known design trade-off
+    // used by production filesystems (ext3 default, ext4, XFS, btrfs metadata):
+    //
+    //   - DIRECTORIES (T_DIR): Logged through the journal via log_write().
+    //     A crash mid-update could leave the directory tree inconsistent
+    //     (e.g., dangling inode, lost entry), so atomicity is critical.
+    //
+    //   - REGULAR FILES (T_FILE): Written directly to disk via bwrite().
+    //     A crash may leave partially-written data, but the filesystem
+    //     STRUCTURE remains consistent.  The file's metadata (inode, size,
+    //     block pointers) is still journaled via iupdate() below.
+    //
+    // Trade-off:
+    //   + Performance: Avoids double-writing file data (once to log, once
+    //     to home location), cutting I/O in half for large writes.
+    //   - Durability: File data may be partially written after a crash.
+    //     This is acceptable for most workloads — applications that need
+    //     stronger guarantees (databases) use fsync() or their own WAL.
+    //
+    // This is the same strategy as Linux ext3's default "ordered" mode,
+    // which has been the production default since 2001.
+    // ---------------------------------------------------------------
+    if(ip->type == T_DIR){
+      log_write(bp, off%BSIZE, m);
+    } else {
+      bwrite(bp);
+    }
+    
     brelse(bp);
   }
 
